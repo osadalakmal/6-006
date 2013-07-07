@@ -1,7 +1,6 @@
 #include <iostream>
 #include <sstream>
-#include <list>
-#include <queue>
+#include <deque>
 #include <cassert>
 #include <cstring>
 #include <cmath>
@@ -14,6 +13,10 @@ class TreeNode {
     TreeNode *d_right;
     TreeNode *d_parent;
     public:
+    enum InsType {
+        LEFT = 1,
+        RIGHT = 2
+    };
     TreeNode(int time) : d_time(time),d_left(NULL),d_right(NULL),d_parent(NULL)
         ,d_height(0) {}
     const int data() const { return d_time; }
@@ -22,6 +25,7 @@ class TreeNode {
     TreeNode*& left() { return d_left; }
     TreeNode*& right() { return d_right; }
     TreeNode*& parent() { return d_parent; }
+    TreeNode*& link(InsType type) { return type == LEFT ? left() : right(); }
     bool operator<(const TreeNode& other) {
         return d_time < other.data();
     }
@@ -33,16 +37,11 @@ class TreeNode {
 class BSTree {
 
     TreeNode* head;
-    enum InsType {
-        LEFT = 1,
-        RIGHT = 2
-    };
     struct QueueRec {
         TreeNode* rec;
-        InsType insType;
+        TreeNode::InsType insType;
     };
-    std::list<QueueRec> insList;
-    std::queue<QueueRec, std::list<QueueRec> > insQueue;
+    std::deque<QueueRec> insList;
 
     int getHeight(TreeNode* parent) {
         int height = 0 - ( parent->left() == NULL ? 0 : 1 + parent->left()->height());
@@ -51,7 +50,63 @@ class BSTree {
     }
 
     public:
-    BSTree() : head(NULL), insQueue(insList) {
+    BSTree() : head(NULL) {
+    }
+
+    TreeNode* LeftRotate(TreeNode* centre) {
+        TreeNode* root = centre;
+        root = centre->right();
+        if (centre->right()->left()) {
+            centre->right() = centre->right()->left();
+        }
+        root->left() = centre;
+        root->setHeight(root->height() + 1);
+        centre->setHeight(centre->height() - 1);
+        return root;
+    }
+
+    TreeNode* RightRotate(TreeNode* centre) {
+        TreeNode* root = centre;
+        root = centre->left();
+        if (centre->left()->right()) {
+            centre->left() = centre->left()->right();
+        }
+        root->right() = centre;
+        //root->setHeight(root->height() + 1);
+        centre->setHeight(centre->height() - 1);
+        return root;
+    }
+
+    bool isLeftHeavy(TreeNode* node) {
+        if (!node) {
+            return false;
+        }
+        std::cout << "Checking if node " << node->data() << " is left heavy\n";
+        if (!node->left()) {
+            return false;
+        } else if (!node->right()) {
+            std::cout << "L node height " << node->left()->height() << "\n";
+            return ( (node->left()->height()) > 1);
+        } else {
+            std::cout << "L node height both " << (node->left()->height() - node->right()->height()) << "\n";
+            return ( (node->left()->height() - node->right()->height()) > 1);
+        }
+    }
+
+    bool isRightHeavy(TreeNode* node) {
+        if (!node) {
+            return false;
+        }
+        std::cout << "Checking if node " << node->data() << " is right heavy\n";
+        if (!node->right()) {
+            return false;
+        } else if (!node->left()) {
+            std::cout << "R node height " << node->right()->height() << "\n";
+            return ( (node->right()->height()) > 1);
+        } else {
+            std::cout << "R node height both " << (node->right()->height() - node->left()->height()) << "\n";
+            return ( (node->right()->height() - node->left()->height()) > 1);
+        }
     }
 
     void insert(int time) {
@@ -59,32 +114,89 @@ class BSTree {
         insList.clear();
         if (head == NULL) {
             head = newNode;
-            newNode->parent() == NULL;
+            newNode->parent() == head;
         } else {
             TreeNode **current = &head;
             TreeNode *parent = head;
-            while ( (*current) != NULL) {
+            while ( *current ) {
                 parent = *current;
                 QueueRec rec;
                 rec.rec = *current;
                 if ( **current < *newNode) {
-                    std::cout << "taking right\n";
-                    rec.insType = LEFT;
+                    rec.insType = TreeNode::RIGHT;
                     current = &((*current)->right());
                 } else {
-                    std::cout << "taking left\n";
-                    rec.insType = RIGHT;
+                    rec.insType = TreeNode::LEFT;
                     current = &((*current)->left());
                 }
-                insQueue.push(rec);
+                insList.push_back(rec);
             }
             *current = newNode;
             newNode->parent() = parent;
-            parent->setHeight(getHeight(parent));
             newNode->setHeight(0);
-            while (!insQueue.empty()) {
-                insQueue.back();
+            QueueRec rec;
+            while ( !insList.empty() ) {
+                TreeNode *current = insList.back().rec;
+                if (current->left() && current->right()) {
+                    insList.back().rec->setHeight( 
+                        std::max(current->left()->height(),current->right()->height()) + 1);
+                } else if (current->left()) {
+                    insList.back().rec->setHeight( current->left()->height() + 1);
+                } else if (current->right()) {
+                    insList.back().rec->setHeight( current->right()->height() + 1);
+                }
+                if (isRightHeavy(current)) {
+                    if (isLeftHeavy(current->right())) {
+                        std::cout << "DLR\n";
+                        current->right() = RightRotate(current->right());
+                        TreeNode* parent = current->parent();
+                        if (!parent) {
+                            head = LeftRotate(current);
+                        } else if (parent->right() == current) {
+                            parent->right() = LeftRotate(current);
+                        } else {
+                            parent->right() = LeftRotate(current);
+                        }
+                    } else {
+                        std::cout << "SLR\n";
+                        TreeNode* parent = current->parent();
+                        if (!parent) {
+                            head = LeftRotate(current);
+                        } else if (parent->right() == current) {
+                            parent->right() = LeftRotate(current);
+                        } else {
+                            parent->right() = LeftRotate(current);
+                        }
+                    }
+                } else if (isLeftHeavy(current)) {
+                    if (isRightHeavy(current->left())) {
+                        std::cout << "DRR\n";
+                        std::cout << "DLR\n";
+                        current->left() = LeftRotate(current->left());
+                        TreeNode* parent = current->parent();
+                        if (!parent) {
+                            head = RightRotate(current);
+                        } else if (parent->right() == current) {
+                            parent->right() = RightRotate(current);
+                        } else {
+                            parent->right() = RightRotate(current);
+                        }
+                    } else {
+                        std::cout << "SRR\n";
+                        TreeNode* parent = current->parent();
+                        if (!parent) {
+                            head = RightRotate(current);
+                        } else if (parent->right() == current) {
+                            parent->right() = RightRotate(current);
+                        } else {
+                            parent->right() = RightRotate(current);
+                        }
+                    }
+                }
+                rec = QueueRec(insList.back());
+                insList.pop_back();
             }
+            insList.clear();
         }
     }
 
