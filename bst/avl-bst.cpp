@@ -56,56 +56,62 @@ class BSTree {
     TreeNode* LeftRotate(TreeNode* centre) {
         TreeNode* root = centre;
         root = centre->right();
-        if (centre->right()->left()) {
-            centre->right() = centre->right()->left();
+        root->parent() = centre->parent();
+        centre->right() = root->left();
+        if (root->left()) {
+            root->left() = centre;
         }
         root->left() = centre;
-        root->setHeight(root->height() + 1);
+        centre->parent() = root;
         centre->setHeight(centre->height() - 1);
+        root->setHeight(centre->height() + 1);
         return root;
     }
 
     TreeNode* RightRotate(TreeNode* centre) {
         TreeNode* root = centre;
         root = centre->left();
-        if (centre->left()->right()) {
-            centre->left() = centre->left()->right();
+        root->parent() = centre->parent();
+        centre->left() = root->right();
+        if (root->right()) {
+            root->right() = centre;
         }
         root->right() = centre;
-        //root->setHeight(root->height() + 1);
+        centre->parent() = root;
         centre->setHeight(centre->height() - 1);
+        root->setHeight(centre->height() + 1);
         return root;
     }
 
-    bool isLeftHeavy(TreeNode* node) {
+    int isLeftHeavy(TreeNode* node) {
         if (!node) {
-            return false;
+            return 0;
         }
-        std::cout << "Checking if node " << node->data() << " is left heavy\n";
+        //std::cout << "Checking if node " << node->data() << " is left heavy\n";
         if (!node->left()) {
-            return false;
+            return 0;
         } else if (!node->right()) {
-            std::cout << "L node height " << node->left()->height() << "\n";
-            return ( (node->left()->height()) > 1);
+            //std::cout << "L node height " << node->left()->height()+1 << "\n";
+            return (node->left()->height() + 1);
         } else {
-            std::cout << "L node height both " << (node->left()->height() - node->right()->height()) << "\n";
-            return ( (node->left()->height() - node->right()->height()) > 1);
+            //std::cout << "L node height both " <<(node->left()->height()-node->right()->height()+1) << "\n";
+            return (node->left()->height()-node->right()->height());
         }
     }
 
-    bool isRightHeavy(TreeNode* node) {
+    int isRightHeavy(TreeNode* node) {
         if (!node) {
-            return false;
+            return 0;
         }
-        std::cout << "Checking if node " << node->data() << " is right heavy\n";
+        //std::cout << "Checking if node " << node->data() << " is right heavy\n";
         if (!node->right()) {
-            return false;
+            return 0;
         } else if (!node->left()) {
-            std::cout << "R node height " << node->right()->height() << "\n";
-            return ( (node->right()->height()) > 1);
+            //std::cout << "R node height " << node->right()->height()+1<< "\n";
+            return (node->right()->height()) + 1;
         } else {
-            std::cout << "R node height both " << (node->right()->height() - node->left()->height()) << "\n";
-            return ( (node->right()->height() - node->left()->height()) > 1);
+            //std::cout << "R node height both " <<(node->right()->height()-node->left()->height()+1) << "\n";
+            return (node->right()->height()-node->left()->height());
         }
     }
 
@@ -145,10 +151,12 @@ class BSTree {
                 } else if (current->right()) {
                     insList.back().rec->setHeight( current->right()->height() + 1);
                 }
-                if (isRightHeavy(current)) {
-                    if (isLeftHeavy(current->right())) {
+                if (isRightHeavy(current) >= 2) {
+                    if (isLeftHeavy(current->right()) >= 1) {
                         std::cout << "DLR\n";
+                        current->setHeight(current->height() - 1);
                         current->right() = RightRotate(current->right());
+                        current->right()->setHeight(current->right()->height() - 1);
                         TreeNode* parent = current->parent();
                         if (!parent) {
                             head = LeftRotate(current);
@@ -168,11 +176,12 @@ class BSTree {
                             parent->right() = LeftRotate(current);
                         }
                     }
-                } else if (isLeftHeavy(current)) {
-                    if (isRightHeavy(current->left())) {
+                } else if (isLeftHeavy(current) >= 2) {
+                    if (isRightHeavy(current->left()) > 1) {
                         std::cout << "DRR\n";
-                        std::cout << "DLR\n";
+                        current->setHeight(current->height() - 1);
                         current->left() = LeftRotate(current->left());
+                        current->left()->setHeight(current->left()->height() - 1);
                         TreeNode* parent = current->parent();
                         if (!parent) {
                             head = RightRotate(current);
@@ -184,6 +193,7 @@ class BSTree {
                     } else {
                         std::cout << "SRR\n";
                         TreeNode* parent = current->parent();
+                        current->setHeight(current->height() - 1);
                         if (!parent) {
                             head = RightRotate(current);
                         } else if (parent->right() == current) {
